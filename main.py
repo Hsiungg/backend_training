@@ -1,5 +1,7 @@
-from fastapi import FastAPI, Query, Body, Cookie, Path, HTTPException
-from typing import Annotated
+from fastapi import FastAPI, Query, Body, Cookie, Path, HTTPException, Form, File, UploadFile, status, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from typing import Annotated, List, Dict
 from decimal import Decimal
 from pydantic import BaseModel, Field
 from datetime import datetime, time, timedelta
@@ -35,7 +37,7 @@ async def read_items(
 
 @app.put("/items/{item_id}")
 async def update_item(
-    item_id: Annotated[Decimal, Path(title="ID of items", description="item_id should between 1 - 1000", ge = 1, le = 1000) ],
+    item_id: Annotated[int, Path(title="ID of items", description="item_id should between 1 - 1000", ge = 1, le = 1000) ],
     item: Item,
     q: Annotated[str | None, Query(description = "length of q should between 3 - 50")] = None
     ):
@@ -127,3 +129,61 @@ async def read_items_from_cookies(
         "session_id": session_id,
         "message": "This is the session ID obtained from the cookies."
     }
+
+# HW5 start here
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "detail": "Validation error occurred",
+            "errors": exc.errors()
+        })
+@app.post("/items/form_and_file/")
+async def add_form_and_file(
+    name: Annotated[str, Form()],
+    price: Annotated[float, Form()],
+    description: Annotated[str | None, Form()] = None,
+    tax: Annotated[float | None, Form()] = None,
+    file_data: UploadFile = File(),
+):
+    if price < 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Price cannot be negative")
+    
+    return {
+        "name": name,
+        "description": description,
+        "price": price,
+        "tax": tax,
+        "filename": file_data.filename, 
+        "message": "This is an item created using form data and a file."
+        }
+
+# HW6
+
+class Author(BaseModel):
+    name: str
+    age: int
+class Book(BaseModel):
+    title: str
+    author: Author
+    summary: str | None
+@app.get("/books/", response_model=list[Book])
+async def read_books():
+    books = [
+        Book(title="Book 1", author=Author(name="Author 1", age = 30), summary="Summary 1"),
+        Book(title="Book 2", author=Author(name="Author 2", age = 90), summary="Summary 2")
+    ]
+    return books
+
+@app.post("/books/create_with_author/", response_model=Book)
+async def add_book(
+    new_book: Book
+):
+    return new_book
+
+@app.post("/books/", response_model=Book, status_code=status.HTTP_201_CREATED)
+async def add_book(
+    new_book: Book
+):
+    return new_book
