@@ -131,33 +131,25 @@ async def read_items_from_cookies(
     }
 
 # HW5 start here
-@app.exception_handler(RequestValidationError)
-async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
-            "detail": "Validation error occurred",
-            "errors": exc.errors()
-        })
 @app.post("/items/form_and_file/")
-async def add_form_and_file(
+async def add_item_with_file(
     name: Annotated[str, Form()],
-    price: Annotated[float, Form()],
-    description: Annotated[str | None, Form()] = None,
+    price: Annotated[float, Form()] ,
+    description: Annotated[str| None, Form()] = None,
     tax: Annotated[float | None, Form()] = None,
-    file_data: UploadFile = File(),
+    file: UploadFile = File(description="Upload file is required"),
 ):
     if price < 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Price cannot be negative")
+        raise HTTPException(status_code=400, detail="Price cannot be negative")
     
     return {
-        "name": name,
-        "description": description,
-        "price": price,
-        "tax": tax,
-        "filename": file_data.filename, 
-        "message": "This is an item created using form data and a file."
-        }
+            "name": name,
+            "price": price,
+            "description": description,
+            "tax": tax,
+            "filename": file.filename,
+            "message": "This is an item created using form data and a file."
+    }
 
 # HW6
 
